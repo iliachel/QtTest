@@ -2,6 +2,7 @@
 #define MOVE_H
 
 #include "piece.h"
+#include <optional>
 
 // Represents a single move in the game
 struct Move {
@@ -10,11 +11,11 @@ struct Move {
     int toFile;
     int toRank;
 
-    const Piece* pieceMoved = nullptr;
-    const Piece* pieceCaptured = nullptr;
+    Piece pieceMoved;
+    std::optional<Piece> pieceCaptured;
     bool promotion = false;
 
-    Move(int fFile, int fRank, int tFile, int tRank, const Piece* moved, const Piece* captured = nullptr, bool isPromotion = false)
+    Move(int fFile, int fRank, int tFile, int tRank, const Piece& moved, std::optional<Piece> captured = std::nullopt, bool isPromotion = false)
         : fromFile(fFile), fromRank(fRank), toFile(tFile), toRank(tRank), pieceMoved(moved), pieceCaptured(captured), promotion(isPromotion)
     {}
 };

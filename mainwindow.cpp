@@ -77,14 +77,18 @@ void MainWindow::mousePressEvent(QMouseEvent* event)
 
     if (selectedPiece) {
         // A piece is already selected, try to move it
-        Move move(selectedPiece->file(), selectedPiece->rank(), file, rank, selectedPiece->piece(), board.pieceAt(file, rank));
+        std::optional<Piece> capturedPiece;
+        if (board.pieceAt(file, rank)) {
+            capturedPiece = *board.pieceAt(file, rank);
+        }
+        Move move(selectedPiece->file(), selectedPiece->rank(), file, rank, *selectedPiece->piece(), capturedPiece);
 
         if (isValidMove(board, move)) {
             board.applyMove(move);
-            updateBoard();
             selectedPiece->setSelected(false);
-            selectedPiece = nullptr;
             clearHighlights();
+            selectedPiece = nullptr;
+            updateBoard();
         } else {
             // Invalid move, deselect or select another piece
             selectedPiece->setSelected(false);

@@ -34,7 +34,7 @@ inline bool pathIsClear(const Board& board, const Move& move) {
 inline bool isValidPawnMove(const Board& board, const Move& move) {
     int df = move.toFile - move.fromFile;
     int dr = move.toRank - move.fromRank;
-    int dir = (move.pieceMoved->color == Color::White) ? 1 : -1;
+    int dir = (move.pieceMoved.color == Color::White) ? 1 : -1;
 
     // Forward move
     if (df == 0) {
@@ -42,7 +42,7 @@ inline bool isValidPawnMove(const Board& board, const Move& move) {
         if (dr == dir && !board.pieceAt(move.toFile, move.toRank))
             return true;
         // Double square forward
-        if (dr == 2 * dir && !move.pieceMoved->hasMoved &&
+        if (dr == 2 * dir && !move.pieceMoved.hasMoved &&
             !board.pieceAt(move.fromFile, move.fromRank + dir) &&
             !board.pieceAt(move.toFile, move.toRank))
             return true;
@@ -53,7 +53,7 @@ inline bool isValidPawnMove(const Board& board, const Move& move) {
     // En passant
     if (std::abs(df) == 1 && dr == dir && !board.pieceAt(move.toFile, move.toRank) && board.lastMove) {
         const Move* lm = board.lastMove.get();
-        if (lm->pieceMoved->type == PieceType::Pawn &&
+        if (lm->pieceMoved.type == PieceType::Pawn &&
             std::abs(lm->toRank - lm->fromRank) == 2 &&
             lm->toFile == move.toFile &&
             lm->toRank == move.fromRank) {
@@ -72,7 +72,7 @@ inline bool isValidKingMove(const Board& board, const Move& move) {
         return true;
 
     // Castling
-    if (!move.pieceMoved->hasMoved && dr == 0 && std::abs(df) == 2) {
+    if (!move.pieceMoved.hasMoved && dr == 0 && std::abs(df) == 2) {
         int rookFile = (df > 0) ? 7 : 0;
         const Piece* rook = board.pieceAt(rookFile, move.fromRank);
         if (!rook || rook->type != PieceType::Rook || rook->hasMoved)
@@ -88,16 +88,13 @@ inline bool isValidKingMove(const Board& board, const Move& move) {
 }
 
 inline bool isValidMove(const Board& board, const Move& move) {
-    if (move.pieceCaptured && move.pieceCaptured->color == move.pieceMoved->color)
-        return false;
-
-    if (!move.pieceMoved)
+    if (move.pieceCaptured && move.pieceCaptured->color == move.pieceMoved.color)
         return false;
 
     int df = move.toFile - move.fromFile;
     int dr = move.toRank - move.fromRank;
 
-    switch (move.pieceMoved->type) {
+    switch (move.pieceMoved.type) {
         case PieceType::Pawn:
             return isValidPawnMove(board, move);
         case PieceType::Rook:
@@ -184,8 +181,11 @@ inline std::vector<Move> generatePseudoLegalMoves(const Board& board, Color colo
             if (piece && piece->color == color) {
                 for (int tr = 0; tr < 8; ++tr) {
                     for (int tf = 0; tf < 8; ++tf) {
-                        const Piece* captured = board.pieceAt(tf, tr);
-                        Move move(f, r, tf, tr, piece, captured);
+                        std::optional<Piece> captured;
+                        if (board.pieceAt(tf, tr)) {
+                            captured = *board.pieceAt(tf, tr);
+                        }
+                        Move move(f, r, tf, tr, *piece, captured);
                         if (isValidMove(board, move)) {
                             moves.push_back(move);
                         }
