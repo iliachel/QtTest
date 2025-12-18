@@ -1,19 +1,19 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-
 #include <QGraphicsView>
 #include <QPen>
 #include <QBrush>
 #include <QMouseEvent>
 #include "rules.h"
 #include "move.h"
+#include <vector>
 
 constexpr int TileSize = 60;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    scene(new QGraphicsScene(this))
+      ui(new Ui::MainWindow),
+      scene(new QGraphicsScene(this))
 {
     ui->setupUi(this);
 
@@ -37,18 +37,8 @@ void MainWindow::drawBoard()
     QColor darkSquare(181, 136, 99);
     for (int x = 0; x < 8; ++x) {
         for (int y = 0; y < 8; ++y) {
-            QColor color = ((x + y) % 2 == 0)
-            ? lightSquare
-            : darkSquare;
-
-            scene->addRect(
-                x * TileSize,
-                y * TileSize,
-                TileSize,
-                TileSize,
-                QPen(Qt::NoPen),
-                QBrush(color)
-                );
+            QColor color = ((x + y) % 2 == 0) ? lightSquare : darkSquare;
+            scene->addRect(x * TileSize, y * TileSize, TileSize, TileSize, QPen(Qt::NoPen), QBrush(color));
         }
     }
 }
@@ -57,12 +47,12 @@ void MainWindow::drawPieces()
 {
     for (int x = 0; x < 8; ++x) {
         for (int y = 0; y < 8; ++y) {
-            Piece* piece = board.pieceAtMutable(x, y); // <- используем mutable
+            const Piece* piece = board.pieceAt(x, y);
             if (!piece) continue;
 
             auto* item = new ChessPiece(piece, x, y);
             scene->addItem(item);
-            chessItems[x][y] = item; // сохраняем объект
+            chessItems[x][y] = item;
         }
     }
 }
@@ -83,121 +73,77 @@ void MainWindow::mousePressEvent(QMouseEvent* event)
     if (file < 0 || file > 7 || rank < 0 || rank > 7)
         return;
 
-    // Находим кликнутую фигуру (ChessPiece)
-    ChessPiece* clickedPiece = nullptr;
-    for (QGraphicsItem* item : scene->items(pos)) {
-        if (auto* cp = dynamic_cast<ChessPiece*>(item)) {
-            clickedPiece = cp;
-            break;
+    ChessPiece* clickedPiece = chessItems[file][rank];
+
+    if (selectedPiece) {
+        // A piece is already selected, try to move it
+        Move move(selectedPiece->file(), selectedPiece->rank(), file, rank, selectedPiece->piece(), board.pieceAt(file, rank));
+
+        if (isValidMove(board, move)) {
+            board.applyMove(move);
+            updateBoard();
+            selectedPiece->setSelected(false);
+            selectedPiece = nullptr;
+            clearHighlights();
+        } else {
+            // Invalid move, deselect or select another piece
+            selectedPiece->setSelected(false);
+            if (clickedPiece && clickedPiece->piece()->color == board.sideToMove) {
+                selectedPiece = clickedPiece;
+                selectedPiece->setSelected(true);
+                highlightMoves(selectedPiece);
+            } else {
+                selectedPiece = nullptr;
+                clearHighlights();
+            }
         }
-    }
-
-    // Нельзя выбрать чужую фигуру
-    if (clickedPiece && clickedPiece->piece()->color != board.sideToMove)
-        return;
-
-    // Если ничего не выбрано, выбираем фигуру своей стороны
-    if (!selectedPiece) {
-        if (clickedPiece) {
+    } else {
+        // No piece is selected, select the clicked piece if it's of the correct color
+        if (clickedPiece && clickedPiece->piece()->color == board.sideToMove) {
             selectedPiece = clickedPiece;
             selectedPiece->setSelected(true);
             highlightMoves(selectedPiece);
         }
-        return;
     }
-
-    // Если кликнули на фигуру своей стороны, меняем выбор
-    if (clickedPiece && clickedPiece->piece()->color == board.sideToMove) {
-        selectedPiece->setSelected(false);
-        selectedPiece = clickedPiece;
-        selectedPiece->setSelected(true);
-        highlightMoves(selectedPiece);
-        return;
-    }
-
-    // Делаем ход на пустую клетку или на фигуру противника
-    Piece* moving = selectedPiece->piece();
-    Piece* capturedPiece = nullptr;
-    ChessPiece* targetItem = chessItems[file][rank];
-
-    if (targetItem)
-        capturedPiece = board.pieceAtMutable(file, rank); // Берем Piece из доски
-
-    Move move(selectedPiece->file(), selectedPiece->rank(),
-              file, rank,
-              moving, capturedPiece);
-
-    // Проверяем валидность хода
-    if (!isValidMove(board, move))
-        return;
-
-    clearHighlights();
-
-    // Применяем ход к логике доски (удаление взятой фигуры и обновление доски)
-    board.applyMove(move);
-
-    // Удаляем визуально взятую фигуру, если была
-    if (targetItem) {
-        scene->removeItem(targetItem);
-        delete targetItem;
-        chessItems[file][rank] = nullptr;
-    }
-
-    // Обновляем матрицу и позицию перемещаемой фигуры
-    chessItems[selectedPiece->file()][selectedPiece->rank()] = nullptr;
-    selectedPiece->setBoardPos(file, rank);
-    chessItems[file][rank] = selectedPiece;
-
-    // Обновляем графическое отображение (например, пешка -> ферзь)
-    selectedPiece->updateAppearance();
-
-    // Снимаем выделение
-    selectedPiece->setSelected(false);
-    selectedPiece = nullptr;
 }
 
+void MainWindow::updateBoard()
+{
+    // Clear existing pieces from the scene
+    for (int x = 0; x < 8; ++x) {
+        for (int y = 0; y < 8; ++y) {
+            if (chessItems[x][y]) {
+                scene->removeItem(chessItems[x][y]);
+                delete chessItems[x][y];
+                chessItems[x][y] = nullptr;
+            }
+        }
+    }
 
-
-
+    // Redraw pieces from the board state
+    drawPieces();
+}
 
 void MainWindow::highlightMoves(ChessPiece* piece)
 {
-    if (piece->piece()->color != board.sideToMove)
+    if (!piece || piece->piece()->color != board.sideToMove)
         return;
 
     clearHighlights();
 
-    for (int x = 0; x < 8; ++x) {
-        for (int y = 0; y < 8; ++y) {
+    auto validMoves = generatePseudoLegalMoves(board, piece->piece()->color);
 
-            Move move(
-                piece->file(), piece->rank(),
-                x, y,
-                piece->piece(),
-                nullptr
-                );
-
-            move.pieceCaptured = detectCapturedPiece(board, move);
-
-            if (isValidMove(board, move)) {
-                auto* rect = scene->addRect(
-                    x * TileSize,
-                    y * TileSize,
-                    TileSize,
-                    TileSize,
-                    QPen(Qt::NoPen),
-                    QBrush(QColor(0, 255, 0, 80))
-                    );
-
-                moveHighlights.push_back(rect);
-            }
+    for (const auto& move : validMoves) {
+        if (move.fromFile == piece->file() && move.fromRank == piece->rank()) {
+            auto* rect = scene->addRect(move.toFile * TileSize, move.toRank * TileSize, TileSize, TileSize,
+                                        QPen(Qt::NoPen), QBrush(QColor(0, 255, 0, 80)));
+            moveHighlights.push_back(rect);
         }
     }
 }
 
-
-
-void MainWindow::clearHighlights(){
+void MainWindow::clearHighlights()
+{
     for (auto* item : moveHighlights) {
         scene->removeItem(item);
         delete item;

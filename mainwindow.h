@@ -2,14 +2,18 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QGraphicsScene>
 #include <vector>
+
 #include "board.h"
 #include "chesspiece.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class QGraphicsScene;
+class QMouseEvent;
+class QGraphicsRectItem;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -32,12 +36,12 @@ private:
 
     void drawBoard();
     void drawPieces();
+    void updateBoard();
 
     void highlightMoves(ChessPiece* piece);
     void clearHighlights();
 
     std::vector<QGraphicsRectItem*> moveHighlights;
-
 };
 
 #endif // MAINWINDOW_H
