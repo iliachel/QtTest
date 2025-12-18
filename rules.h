@@ -6,6 +6,10 @@
 #include <cmath>
 #include <vector>
 
+// Forward declarations
+inline bool isValidMove(const Board& board, const Move& move);
+inline std::vector<Move> generatePseudoLegalMoves(const Board& board, Color color);
+
 // Check if the path between 'from' and 'to' is clear (for rooks, bishops, queens)
 inline bool pathIsClear(const Board& board, const Move& move) {
     int df = move.toFile - move.fromFile;
@@ -59,6 +63,30 @@ inline bool isValidPawnMove(const Board& board, const Move& move) {
     return false;
 }
 
+inline bool isValidKingMove(const Board& board, const Move& move) {
+    int df = move.toFile - move.fromFile;
+    int dr = move.toRank - move.fromRank;
+
+    // Normal move
+    if (std::abs(df) <= 1 && std::abs(dr) <= 1)
+        return true;
+
+    // Castling
+    if (!move.pieceMoved->hasMoved && dr == 0 && std::abs(df) == 2) {
+        int rookFile = (df > 0) ? 7 : 0;
+        const Piece* rook = board.pieceAt(rookFile, move.fromRank);
+        if (!rook || rook->type != PieceType::Rook || rook->hasMoved)
+            return false;
+
+        int step = (df > 0) ? 1 : -1;
+        for (int x = move.fromFile + step; x != rookFile; x += step)
+            if (board.pieceAt(x, move.fromRank))
+                return false;
+        return true;
+    }
+    return false;
+}
+
 inline bool isValidMove(const Board& board, const Move& move) {
     if (move.pieceCaptured && move.pieceCaptured->color == move.pieceMoved->color)
         return false;
@@ -82,30 +110,6 @@ inline bool isValidMove(const Board& board, const Move& move) {
             return (std::abs(df) == 2 && std::abs(dr) == 1) || (std::abs(df) == 1 && std::abs(dr) == 2);
         case PieceType::King:
             return isValidKingMove(board, move);
-    }
-    return false;
-}
-
-inline bool isValidKingMove(const Board& board, const Move& move) {
-    int df = move.toFile - move.fromFile;
-    int dr = move.toRank - move.fromRank;
-
-    // Normal move
-    if (std::abs(df) <= 1 && std::abs(dr) <= 1)
-        return true;
-
-    // Castling
-    if (!move.pieceMoved->hasMoved && dr == 0 && std::abs(df) == 2) {
-        int rookFile = (df > 0) ? 7 : 0;
-        const Piece* rook = board.pieceAt(rookFile, move.fromRank);
-        if (!rook || rook->type != PieceType::Rook || rook->hasMoved)
-            return false;
-
-        int step = (df > 0) ? 1 : -1;
-        for (int x = move.fromFile + step; x != rookFile; x += step)
-            if (board.pieceAt(x, move.fromRank))
-                return false;
-        return true;
     }
     return false;
 }
