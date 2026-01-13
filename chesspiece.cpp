@@ -24,7 +24,7 @@ static QString pieceToUnicode(const Piece& p)
     }
     return "?";
 }
-ChessPiece::ChessPiece(Piece* piece, int file, int rank)
+ChessPiece::ChessPiece(const Piece* piece, int file, int rank)
     : m_piece(piece), m_file(file), m_rank(rank)
 {
     setPlainText(pieceToUnicode(*piece));

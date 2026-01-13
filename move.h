@@ -2,19 +2,21 @@
 #define MOVE_H
 
 #include "piece.h"
+#include <optional>
 
-// Структура для представления одного хода
+// Represents a single move in the game
 struct Move {
     int fromFile;
     int fromRank;
     int toFile;
     int toRank;
 
-    Piece* pieceMoved = nullptr;
-    Piece* pieceCaptured = nullptr;
+    Piece pieceMoved;
+    std::optional<Piece> pieceCaptured;
+    bool promotion = false;
 
-    Move(int fFile, int fRank, int tFile, int tRank, Piece* moved, Piece* captured = nullptr)
-        : fromFile(fFile), fromRank(fRank), toFile(tFile), toRank(tRank), pieceMoved(moved), pieceCaptured(captured)
+    Move(int fFile, int fRank, int tFile, int tRank, const Piece& moved, std::optional<Piece> captured = std::nullopt, bool isPromotion = false)
+        : fromFile(fFile), fromRank(fRank), toFile(tFile), toRank(tRank), pieceMoved(moved), pieceCaptured(captured), promotion(isPromotion)
     {}
 };
 
